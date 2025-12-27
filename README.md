@@ -22,38 +22,9 @@ This project is useful in environments where the official Brave website is block
   - `.exe` for Windows
   - `.deb` or `.rpm` for Linux
 - Downloads the installer automatically
+- **Automatic SHA256 hash verification** for download integrity
 - Optional interactive installation step
 - Uses only Python standard library (no external dependencies)
-
----
-
-## 🖥️ Platform Support Status
-
-| Platform | Status |
-|--------|--------|
-| macOS | ✅ Tested |
-| Windows | ⚠️ Untested |
-| Linux | ⚠️ Untested |
-
-> **Important:**  
-> This script has currently been tested **only on macOS**.  
-> Windows and Linux users are strongly encouraged to test it and report results.
-
-Please open an issue if you encounter:
-- Incorrect installer selection
-- Architecture mismatches
-- Installation failures
-- Any unexpected behavior
-
----
-
-## 🔧 Requirements
-
-- Python **3.8+**
-- Internet access to `api.github.com`
-- Administrator privileges **only if installing** (platform-dependent)
-
-No third-party Python packages are required.
 
 ---
 
@@ -62,7 +33,7 @@ No third-party Python packages are required.
 Download the script:
 
 ```bash
-git clone https://github.com/<your-username>/braver-tz.git
+git clone https://github.com/maotora/braver-tz.git
 cd braver-tz
 ```
 
@@ -89,6 +60,37 @@ Specify a custom download directory:
 ```bash
 python3 braver.py --dir /path/to/downloads
 ```
+
+---
+
+## 🔧 Requirements
+
+- Python **3.8+**
+- Internet access to `api.github.com`
+- Administrator privileges **only if installing** (platform-dependent)
+
+No third-party Python packages are required.
+
+---
+
+## 🖥️ Platform Support Status
+
+| Platform | Status |
+|--------|--------|
+| macOS | ✅ Tested |
+| Windows | ✅ Tested |
+| Linux (Ubuntu) | ✅ Tested |
+| Linux (Other distros) | ⚠️ Untested |
+
+> **Important:**  
+> This script has been tested on **macOS, Windows, and Ubuntu**.  
+> Testing on other Linux distributions (Debian, Fedora, Arch, etc.) is encouraged.
+
+Please open an issue if you encounter:
+- Incorrect installer selection
+- Architecture mismatches
+- Installation failures
+- Any unexpected behavior
 
 ---
 
@@ -129,10 +131,7 @@ python3 braver.py
 Contributions are welcome!
 
 Especially needed:
-- Windows testing
 - Linux distro compatibility testing
-- Installer selection improvements
-- Error handling improvements
 
 Please:
 1. Open an issue describing the problem
