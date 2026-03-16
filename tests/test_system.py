@@ -3,9 +3,12 @@ import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from brave_updater.system import (
     compare_versions,
+    detect_installed_version,
+    detect_linux_family,
     normalize_macos_app_version,
     read_linux_version,
     read_macos_version,
@@ -50,6 +53,15 @@ class SystemTests(unittest.TestCase):
 
         self.assertEqual(version, "1.2.3")
 
+    def test_detect_linux_family_reads_os_release(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            os_release = Path(temp_dir) / "os-release"
+            os_release.write_text('ID=ubuntu\nID_LIKE="debian"\n')
+
+            family = detect_linux_family(os_release)
+
+        self.assertEqual(family, "debian")
+
     def test_read_windows_version_uses_powershell_metadata(self) -> None:
         with TemporaryDirectory() as temp_dir:
             executable = Path(temp_dir) / "brave.exe"
@@ -62,6 +74,15 @@ class SystemTests(unittest.TestCase):
             version = read_windows_version([executable], runner=fake_runner)
 
         self.assertEqual(version, "1.2.3.4")
+
+    def test_detect_installed_version_delegates_by_platform(self) -> None:
+        with mock.patch("brave_updater.system.read_macos_version", return_value="1.2.3"):
+            self.assertEqual(detect_installed_version(system_info=mock.Mock(os_name="macos")), "1.2.3")
+        with mock.patch("brave_updater.system.read_linux_version", return_value="1.2.3"):
+            self.assertEqual(detect_installed_version(system_info=mock.Mock(os_name="linux")), "1.2.3")
+        with mock.patch("brave_updater.system.read_windows_version", return_value="1.2.3"):
+            self.assertEqual(detect_installed_version(system_info=mock.Mock(os_name="windows")), "1.2.3")
+        self.assertIsNone(detect_installed_version(system_info=mock.Mock(os_name="unknown")))
 
 
 if __name__ == "__main__":
