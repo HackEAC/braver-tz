@@ -1,0 +1,15 @@
+{
+  "version": "REPLACE_WITH_VERSION",
+  "description": "Unofficial CLI to download and update Brave Browser from Brave-controlled release sources.",
+  "homepage": "https://github.com/HackEAC/braver-tz",
+  "license": "MIT",
+  "url": "https://github.com/HackEAC/braver-tz/releases/download/vREPLACE_WITH_VERSION/brave-updater-windows-x64.zip",
+  "hash": "REPLACE_WITH_WINDOWS_ZIP_SHA256",
+  "bin": "brave-updater.exe",
+  "checkver": {
+    "github": "https://github.com/HackEAC/braver-tz"
+  },
+  "autoupdate": {
+    "url": "https://github.com/HackEAC/braver-tz/releases/download/v$version/brave-updater-windows-x64.zip"
+  }
+}
