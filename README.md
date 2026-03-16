@@ -11,6 +11,40 @@ Important:
 
 ## Install
 
+### Homebrew
+
+Available now on macOS and Linux with Homebrew:
+
+```bash
+brew tap HackEAC/brave-updater
+brew install HackEAC/brave-updater/brave-updater
+```
+
+### Scoop
+
+Available now on Windows with Scoop:
+
+```powershell
+scoop bucket add hackeac https://github.com/HackEAC/scoop-bucket
+scoop install brave-updater
+```
+
+### PyPI
+
+Coming soon. Once the PyPI publisher approval is complete, the intended install flows will be:
+
+```bash
+pipx install brave-updater
+```
+
+or:
+
+```bash
+python3 -m pip install brave-updater
+```
+
+Until PyPI is live, use Homebrew, Scoop, or install from source.
+
 ### From source
 
 ```bash
@@ -32,9 +66,10 @@ python3 braver.py --install
 
 This repository now includes release packaging for:
 
-- `PyPI` / `pipx`
 - `Homebrew`
-- Windows portable releases for `Scoop` and `WinGet`
+- `Scoop`
+- `PyPI` / `pipx` coming soon
+- Windows portable releases for `WinGet`
 
 Release-channel notes and packaging assets live in [packaging/README.md](/Users/maotora/Projects/brave-updater/packaging/README.md).
 
