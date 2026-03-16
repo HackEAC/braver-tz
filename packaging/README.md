@@ -30,3 +30,12 @@ On each tagged release, the release workflow should publish:
 - `SHA256SUMS.txt`
 - rendered Homebrew formula
 - rendered Scoop manifest
+
+## Cross-repo sync
+
+The Homebrew tap and Scoop bucket live in separate repositories:
+
+- `HackEAC/homebrew-brave-updater`
+- `HackEAC/scoop-bucket`
+
+`HackEAC/braver-tz` can notify both repos immediately after a tagged release by using the `PACKAGING_SYNC_TOKEN` repository secret. Without that secret, the external repos still poll the latest release on a 6-hour schedule.

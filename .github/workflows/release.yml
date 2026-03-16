@@ -190,3 +190,32 @@ jobs:
             release-assets/SHA256SUMS.txt
             release-assets/manifests/homebrew/brave-updater.rb
             release-assets/manifests/scoop/brave-updater.json
+
+  dispatch-packaging-sync:
+    needs: publish-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch tap and bucket sync workflows
+        shell: bash
+        env:
+          PACKAGING_SYNC_TOKEN: ${{ secrets.PACKAGING_SYNC_TOKEN }}
+        run: |
+          if [ -z "${PACKAGING_SYNC_TOKEN}" ]; then
+            echo "PACKAGING_SYNC_TOKEN is not configured; skipping tap and bucket dispatch."
+            exit 0
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${PACKAGING_SYNC_TOKEN}" \
+            https://api.github.com/repos/HackEAC/scoop-bucket/dispatches \
+            -d "{\"event_type\":\"sync-from-release\",\"client_payload\":{\"source_repository\":\"${GITHUB_REPOSITORY}\",\"tag\":\"${GITHUB_REF_NAME}\"}}"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${PACKAGING_SYNC_TOKEN}" \
+            https://api.github.com/repos/HackEAC/homebrew-brave-updater/dispatches \
+            -d "{\"event_type\":\"sync-from-release\",\"client_payload\":{\"source_repository\":\"${GITHUB_REPOSITORY}\",\"tag\":\"${GITHUB_REF_NAME}\"}}"

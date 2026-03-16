@@ -17,6 +17,8 @@ brew install HackEAC/brave-updater/brave-updater
 
 The release workflow generates a release-specific formula from the tagged sdist and uploads it as a release asset.
 
+If `HackEAC/braver-tz` has the `PACKAGING_SYNC_TOKEN` secret configured, the release workflow also sends a `repository_dispatch` event to `HackEAC/homebrew-brave-updater` so the tap can sync immediately. Otherwise, the tap repo falls back to its scheduled sync job.
+
 If you need to do it locally instead:
 
 1. Create the tap repo `HackEAC/homebrew-brave-updater`.

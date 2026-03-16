@@ -20,3 +20,4 @@ scoop install brave-updater
 - Scoop packages the Windows CLI only.
 - It does not bundle Brave Browser.
 - The manifest points at the portable zip from GitHub Releases.
+- If `HackEAC/braver-tz` has the `PACKAGING_SYNC_TOKEN` secret configured, releases can notify `HackEAC/scoop-bucket` immediately by `repository_dispatch`; otherwise the bucket repo falls back to its scheduled sync job.
