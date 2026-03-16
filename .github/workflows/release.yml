@@ -6,10 +6,8 @@ on:
       - "v*"
 
 jobs:
-  build:
+  build-python:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
@@ -38,14 +36,186 @@ jobs:
               )
           print("Validated release tag {} against package version {}".format(tag, __version__))
 
-      - name: Build distributions
+      - name: Run unit tests
+        run: python -m unittest discover -v
+
+      - name: Build Python distributions
         run: |
           python -m pip install --upgrade pip
           python -m pip install build twine
           python -m build
           python -m twine check dist/*
 
+      - name: Upload Python distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+
+  build-windows-portable:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate tag matches package version
+        shell: python
+        run: |
+          import os
+          import pathlib
+          import sys
+
+          sys.path.insert(0, str(pathlib.Path("src").resolve()))
+          from brave_updater import __version__
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = tag[1:] if tag.startswith("v") else tag
+          if __version__ != expected:
+              raise SystemExit(
+                  "Release tag {} does not match brave_updater.__version__ {}".format(tag, __version__)
+              )
+          print("Validated release tag {} against package version {}".format(tag, __version__))
+
+      - name: Build Windows portable executable
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m PyInstaller --noconfirm --clean --onefile --name brave-updater --paths src packaging/windows/entrypoint.py
+
+      - name: Package Windows portable zip
+        shell: python
+        run: |
+          import pathlib
+          import zipfile
+
+          output_dir = pathlib.Path("dist/windows")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          zip_path = output_dir / "brave-updater-windows-x64.zip"
+
+          with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+              archive.write("dist/brave-updater.exe", "brave-updater.exe")
+              archive.write("LICENSE", "LICENSE")
+              archive.write("README.md", "README.md")
+
+          print("Created {}".format(zip_path))
+
+      - name: Upload Windows portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: dist/windows/brave-updater-windows-x64.zip
+
+  publish-pypi:
+    needs: build-python
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download Python distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+  publish-release:
+    needs: [build-python, build-windows-portable]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download Python distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: release-assets/python
+
+      - name: Download Windows portable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-portable
+          path: release-assets/windows
+
+      - name: Generate SHA256SUMS
+        shell: python
+        run: |
+          import hashlib
+          import pathlib
+
+          root = pathlib.Path("release-assets")
+          outputs = sorted(path for path in root.rglob("*") if path.is_file())
+          lines = []
+          for path in outputs:
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              lines.append("{}  {}".format(digest, path.relative_to(root)))
+          sums_path = root / "SHA256SUMS.txt"
+          sums_path.write_text("\n".join(lines) + "\n")
+          print("Wrote {}".format(sums_path))
+
+      - name: Render Homebrew and Scoop files
+        run: |
+          python scripts/render_distribution_files.py \
+            --version "${GITHUB_REF_NAME}" \
+            --repo "HackEAC/braver-tz" \
+            --source-archive "release-assets/python/brave_updater-${GITHUB_REF_NAME#v}.tar.gz" \
+            --windows-zip "release-assets/windows/brave-updater-windows-x64.zip" \
+            --output-dir "release-assets/manifests"
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: |
+            release-assets/python/*
+            release-assets/windows/*
+            release-assets/SHA256SUMS.txt
+            release-assets/manifests/homebrew/brave-updater.rb
+            release-assets/manifests/scoop/brave-updater.json
+
+  dispatch-packaging-sync:
+    needs: publish-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch tap and bucket sync workflows
+        shell: bash
+        env:
+          PACKAGING_SYNC_TOKEN: ${{ secrets.PACKAGING_SYNC_TOKEN }}
+        run: |
+          if [ -z "${PACKAGING_SYNC_TOKEN}" ]; then
+            echo "PACKAGING_SYNC_TOKEN is not configured; skipping tap and bucket dispatch."
+            exit 0
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${PACKAGING_SYNC_TOKEN}" \
+            https://api.github.com/repos/HackEAC/scoop-bucket/dispatches \
+            -d "{\"event_type\":\"sync-from-release\",\"client_payload\":{\"source_repository\":\"${GITHUB_REPOSITORY}\",\"tag\":\"${GITHUB_REF_NAME}\"}}"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${PACKAGING_SYNC_TOKEN}" \
+            https://api.github.com/repos/HackEAC/homebrew-brave-updater/dispatches \
+            -d "{\"event_type\":\"sync-from-release\",\"client_payload\":{\"source_repository\":\"${GITHUB_REPOSITORY}\",\"tag\":\"${GITHUB_REF_NAME}\"}}"
