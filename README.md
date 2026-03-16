@@ -21,7 +21,7 @@ Important:
 - Cross-platform installer selection:
   - macOS: `.dmg` / `.pkg`
   - Windows: `.exe`
-  - Linux: `.deb` / `.rpm`
+  - Linux: `.deb` / `.rpm` on Debian-like and RHEL-like systems
 - Safer downloads:
   - SHA256 verification
   - redirect host validation
@@ -111,6 +111,14 @@ Available source modes:
 - `auto`
 
 At the moment, `official` and `auto` resolve through Brave's official GitHub release feed. The code is structured so distinct official non-GitHub providers can be added later without redesigning the CLI.
+
+### Linux support
+
+Linux installs are currently supported on:
+- Debian-like distributions
+- RHEL-like distributions
+
+Arch-like and other unsupported Linux families fail fast with a clear error instead of downloading the wrong package format.
 
 ## Development
 

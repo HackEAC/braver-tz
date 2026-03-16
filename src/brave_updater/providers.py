@@ -119,6 +119,13 @@ def pick_asset(assets: List[ReleaseAsset], system_info: SystemInfo) -> Tuple[Rel
             return asset, "Windows: chose first available .exe"
 
     if system_info.os_name == "linux":
+        if system_info.linux_family not in {"debian", "rhel"}:
+            raise RuntimeError(
+                "Unsupported Linux distribution family: {}. Only Debian-like and RHEL-like systems are currently supported.".format(
+                    system_info.linux_family
+                )
+            )
+
         arch_tokens: List[str] = []
         if system_info.arch == "x64":
             arch_tokens = ["amd64", "x86_64"]
@@ -142,16 +149,6 @@ def pick_asset(assets: List[ReleaseAsset], system_info: SystemInfo) -> Tuple[Rel
             asset = find(lambda name: name.endswith(".rpm"))
             if asset:
                 return asset, "Linux RHEL-like: chose first available .rpm"
-
-        asset = find(lambda name: name.endswith(".deb"))
-        if asset:
-            return asset, "Linux: fallback to .deb"
-        asset = find(lambda name: name.endswith(".rpm"))
-        if asset:
-            return asset, "Linux: fallback to .rpm"
-        asset = find(lambda name: name.endswith(".zip") or name.endswith(".tar.gz"))
-        if asset:
-            return asset, "Linux: fallback to archive"
 
     raise RuntimeError(
         "Could not find a suitable asset for {}. Assets seen: {}".format(system_info, names[:30])

@@ -68,16 +68,7 @@ class MacOSInstaller:
                 if temp_target.exists():
                     subprocess.check_call(["sudo", "rm", "-rf", str(temp_target)], timeout=30)
                 subprocess.check_call(["sudo", "cp", "-R", str(staged_app), str(temp_target)], timeout=300)
-
-                if target.exists():
-                    backup_target = Path("/Applications") / (app_path.name + ".old")
-                    if backup_target.exists():
-                        subprocess.check_call(["sudo", "rm", "-rf", str(backup_target)], timeout=30)
-                    subprocess.check_call(["sudo", "mv", str(target), str(backup_target)], timeout=60)
-                    subprocess.check_call(["sudo", "mv", str(temp_target), str(target)], timeout=60)
-                    subprocess.check_call(["sudo", "rm", "-rf", str(backup_target)], timeout=30)
-                else:
-                    subprocess.check_call(["sudo", "mv", str(temp_target), str(target)], timeout=60)
+                _replace_macos_app_bundle(target, temp_target)
 
             self.log("Brave copied to /Applications.")
         finally:
@@ -111,6 +102,13 @@ class LinuxInstaller:
         if not package_path.exists():
             raise FileNotFoundError("Install file not found: {}".format(package_path))
 
+        if self.family not in {"debian", "rhel"}:
+            raise RuntimeError(
+                "Unsupported Linux distribution family: {}. Only Debian-like and RHEL-like systems are supported.".format(
+                    self.family
+                )
+            )
+
         suffix = package_path.suffix.lower()
         if suffix == ".deb":
             self.log("Installing .deb package...")
@@ -143,3 +141,30 @@ def get_installer(system_info: SystemInfo, log: LogFn) -> Installer:
     if system_info.os_name == "linux":
         return LinuxInstaller(log, system_info.linux_family)
     raise RuntimeError("Unsupported operating system: {}".format(system_info.os_name))
+
+
+def _replace_macos_app_bundle(target: Path, temp_target: Path) -> None:
+    """Replace an app bundle while preserving a rollback path on failure."""
+    if not target.exists():
+        subprocess.check_call(["sudo", "mv", str(temp_target), str(target)], timeout=60)
+        return
+
+    backup_target = Path("/Applications") / (target.name + ".old")
+    if backup_target.exists():
+        subprocess.check_call(["sudo", "rm", "-rf", str(backup_target)], timeout=30)
+
+    subprocess.check_call(["sudo", "mv", str(target), str(backup_target)], timeout=60)
+    try:
+        subprocess.check_call(["sudo", "mv", str(temp_target), str(target)], timeout=60)
+    except Exception as exc:
+        try:
+            subprocess.check_call(["sudo", "mv", str(backup_target), str(target)], timeout=60)
+        except Exception as restore_exc:
+            raise RuntimeError(
+                "Failed to replace {} and restore the previous Brave app. Backup remains at {}.".format(
+                    target, backup_target
+                )
+            ) from restore_exc
+        raise RuntimeError("Failed to replace {}; restored the previous Brave app.".format(target)) from exc
+
+    subprocess.check_call(["sudo", "rm", "-rf", str(backup_target)], timeout=30)

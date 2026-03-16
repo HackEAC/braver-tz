@@ -14,6 +14,7 @@ from typing import Any, Dict, Iterable, Optional
 from urllib.error import HTTPError, URLError
 import shutil
 
+from brave_updater import __version__
 from brave_updater.console import LogFn
 
 
@@ -21,6 +22,7 @@ DEFAULT_ALLOWED_DOMAINS = {
     "github.com",
     "githubusercontent.com",
 }
+USER_AGENT = "brave-updater/{}".format(__version__)
 
 
 def validate_url(url: str, allowed_domains: Optional[Iterable[str]] = None) -> bool:
@@ -53,7 +55,7 @@ def http_get_text(
     max_retries: int = 3,
 ) -> str:
     """Fetch text content with retry logic."""
-    request_headers = {"User-Agent": "brave-updater/1.1.0"}
+    request_headers = {"User-Agent": USER_AGENT}
     if headers:
         request_headers.update(headers)
 
@@ -74,7 +76,7 @@ def http_get_json(url: str, timeout: int = 30, max_retries: int = 3) -> Dict[str
     """Fetch JSON from an API endpoint."""
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "brave-updater/1.1.0",
+        "User-Agent": USER_AGENT,
     }
     token = os.environ.get("GITHUB_TOKEN")
     if token:

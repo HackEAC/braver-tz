@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
@@ -7,6 +8,7 @@ from brave_updater.installers import (
     LinuxInstaller,
     MacOSInstaller,
     WindowsInstaller,
+    _replace_macos_app_bundle,
     get_installer,
 )
 from brave_updater.models import SystemInfo
@@ -82,6 +84,72 @@ class InstallerTests(unittest.TestCase):
             check=False,
         )
 
+    def test_macos_replace_restores_backup_if_swap_fails(self) -> None:
+        target = Path("/Applications/Brave Browser.app")
+        temp_target = Path("/Applications/Brave Browser.app.new")
+        backup_target = Path("/Applications/Brave Browser.app.old")
+        state = {
+            str(target): True,
+            str(temp_target): True,
+            str(backup_target): False,
+        }
+
+        def fake_exists(path_obj):
+            return state.get(str(path_obj), False)
+
+        def fake_check_call(command, timeout):
+            if command == ["sudo", "mv", str(target), str(backup_target)]:
+                state[str(target)] = False
+                state[str(backup_target)] = True
+                return 0
+            if command == ["sudo", "mv", str(temp_target), str(target)]:
+                raise subprocess.CalledProcessError(1, command)
+            if command == ["sudo", "mv", str(backup_target), str(target)]:
+                state[str(target)] = True
+                state[str(backup_target)] = False
+                return 0
+            return 0
+
+        with mock.patch("pathlib.Path.exists", fake_exists):
+            with mock.patch("subprocess.check_call", side_effect=fake_check_call) as check_call:
+                with self.assertRaises(RuntimeError) as error:
+                    _replace_macos_app_bundle(target, temp_target)
+
+        self.assertIn("restored the previous Brave app", str(error.exception))
+        self.assertIn(mock.call(["sudo", "mv", str(backup_target), str(target)], timeout=60), check_call.call_args_list)
+
+    def test_macos_replace_raises_clear_error_if_restore_also_fails(self) -> None:
+        target = Path("/Applications/Brave Browser.app")
+        temp_target = Path("/Applications/Brave Browser.app.new")
+        backup_target = Path("/Applications/Brave Browser.app.old")
+        state = {
+            str(target): True,
+            str(temp_target): True,
+            str(backup_target): False,
+        }
+
+        def fake_exists(path_obj):
+            return state.get(str(path_obj), False)
+
+        def fake_check_call(command, timeout):
+            if command == ["sudo", "mv", str(target), str(backup_target)]:
+                state[str(target)] = False
+                state[str(backup_target)] = True
+                return 0
+            if command in (
+                ["sudo", "mv", str(temp_target), str(target)],
+                ["sudo", "mv", str(backup_target), str(target)],
+            ):
+                raise subprocess.CalledProcessError(1, command)
+            return 0
+
+        with mock.patch("pathlib.Path.exists", fake_exists):
+            with mock.patch("subprocess.check_call", side_effect=fake_check_call):
+                with self.assertRaises(RuntimeError) as error:
+                    _replace_macos_app_bundle(target, temp_target)
+
+        self.assertIn("Backup remains at", str(error.exception))
+
     def test_windows_install_launches_startfile(self) -> None:
         with TemporaryDirectory() as temp_dir:
             exe = Path(temp_dir) / "BraveSetup.exe"
@@ -148,6 +216,19 @@ class InstallerTests(unittest.TestCase):
 
             with self.assertRaises(RuntimeError):
                 installer.install(pkg)
+
+    def test_linux_installer_rejects_unsupported_distribution_family(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            pkg = Path(temp_dir) / "brave.deb"
+            pkg.write_text("stub")
+            installer = LinuxInstaller(lambda _: None, "arch")
+
+            with mock.patch("subprocess.check_call") as check_call:
+                with self.assertRaises(RuntimeError) as error:
+                    installer.install(pkg)
+
+        self.assertIn("Unsupported Linux distribution family", str(error.exception))
+        check_call.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -37,6 +37,17 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(asset.name, "brave-browser_1.2.3_amd64.deb")
         self.assertIn(".deb", reason)
 
+    def test_pick_asset_rejects_unsupported_linux_family(self) -> None:
+        assets = [
+            ReleaseAsset("brave-browser-1.2.3-1.x86_64.rpm", "https://github.com/brave.rpm"),
+            ReleaseAsset("brave-browser_1.2.3_amd64.deb", "https://github.com/brave.deb"),
+        ]
+
+        with self.assertRaises(RuntimeError) as error:
+            pick_asset(assets, SystemInfo("linux", "x64", "arch"))
+
+        self.assertIn("Unsupported Linux distribution family", str(error.exception))
+
     def test_parse_sha256_digest(self) -> None:
         digest = parse_sha256_digest("sha256:" + "a" * 64)
         self.assertEqual(digest, "a" * 64)
