@@ -1,0 +1,32 @@
+name: Live Smoke Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * 1"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: python -m pip install --upgrade pip && python -m pip install .
+
+      - name: Legacy URL selection
+        shell: bash
+        run: |
+          URL=$(python braver.py --print-only)
+          echo "Selected URL: $URL"
+          [[ "$URL" =~ ^https:// ]] || exit 1
+
+      - name: JSON health check
+        run: brave-updater check --json --source github
