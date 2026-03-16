@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -22,6 +22,7 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install .
 
       - name: Legacy URL selection
+        shell: bash
         run: |
           URL=$(python braver.py --print-only)
           echo "Selected URL: $URL"
