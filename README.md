@@ -1,146 +1,144 @@
-# Braver-tz
+# brave-updater
 
-<p align="center">
-  <img src="braver-tz-banner.png" alt="braver-tz banner showing Brave shield, network nodes, and clock" width="100%">
-</p>
+`brave-updater` is an unofficial cross-platform CLI for checking, downloading, and updating Brave Browser from Brave-controlled release sources.
 
-A cross-platform Python script that automatically downloads the **latest stable release of Brave Browser** directly from **GitHub Releases**, without relying on brave.com.
+This project is intended for environments where the usual Brave installation flow is inconvenient or blocked, but GitHub-hosted Brave releases are still reachable.
 
-This project is useful in environments where the official Brave website is blocked or inaccessible, but GitHub remains reachable.
+Important:
+- This project is not affiliated with or endorsed by Brave Software.
+- It does not rehost Brave binaries.
+- It downloads Brave installers directly from Brave-controlled GitHub release assets at runtime.
+- Homebrew already ships the official macOS `brave-browser` cask. This project is a separate updater/downloader CLI, not a replacement for that cask.
 
----
+## Current status
 
-## ✨ Features
+- Packaged Python CLI with a `src/` layout and console entrypoint: `brave-updater`
+- Backward-compatible wrapper retained: `python3 braver.py ...`
+- True updater behavior:
+  - Detects installed Brave version when possible
+  - Compares it to the latest stable release
+  - Skips update work when the installed version is already current
+- Cross-platform installer selection:
+  - macOS: `.dmg` / `.pkg`
+  - Windows: `.exe`
+  - Linux: `.deb` / `.rpm`
+- Safer downloads:
+  - SHA256 verification
+  - redirect host validation
+  - temp-file download + atomic replace
+  - safe recovery when resume requests are ignored
 
-- Fetches the **latest stable Brave release** from the official GitHub repository
-- Automatically detects:
-  - Operating system (macOS, Windows, Linux)
-  - CPU architecture (x64, ARM64, etc.)
-  - Linux distribution family (Debian-based, RHEL-based when possible)
-- Selects the most appropriate installer:
-  - `.dmg` / `.pkg` for macOS
-  - `.exe` for Windows
-  - `.deb` or `.rpm` for Linux
-- Downloads the installer automatically
-- **Automatic SHA256 hash verification** for download integrity
-- Optional interactive installation step
-- Uses only Python standard library (no external dependencies)
+## Repository transfer
 
----
+The canonical repository is now `HackEAC/braver-tz`.
 
-## 🚀 Usage
+Post-transfer notes:
+- keep `origin` pointed at `git@github.com:HackEAC/braver-tz.git`
+- do not recreate the previous repository path after the transfer, because that would break GitHub's redirect
+- follow the post-transfer checklist in [`docs/repository-transfer.md`](docs/repository-transfer.md)
 
-Download the script:
+## Installation
+
+### From source
 
 ```bash
-git clone https://github.com/maotora/braver-tz.git
+git clone git@github.com:HackEAC/braver-tz.git
 cd braver-tz
+python3 -m pip install .
 ```
 
-Run to download only:
+After installation:
 
 ```bash
-python3 braver.py
+brave-updater check
 ```
 
-Download **and** install (you will be prompted):
+### Legacy wrapper
 
-```bash
-python3 braver.py --install
-```
-
-Print the direct download URL only (useful for automation):
+You can still use the old entrypoint directly from the repo:
 
 ```bash
 python3 braver.py --print-only
+python3 braver.py --install
 ```
 
-Specify a custom download directory:
+### Homebrew tap
+
+The intended tap command once the tap is published is:
 
 ```bash
-python3 braver.py --dir /path/to/downloads
+brew install HackEAC/brave-updater/brave-updater
 ```
 
----
+The starter formula and tap notes live under [`packaging/homebrew`](packaging/homebrew).
 
-## 🔧 Requirements
+## Usage
 
-- Python **3.8+**
-- Internet access to `api.github.com`
-- Administrator privileges **only if installing** (platform-dependent)
-
-No third-party Python packages are required.
-
----
-
-## 🖥️ Platform Support Status
-
-| Platform | Status |
-|--------|--------|
-| macOS | ✅ Tested |
-| Windows | ✅ Tested |
-| Linux (Ubuntu) | ✅ Tested |
-| Linux (Other distros) | ⚠️ Untested |
-
-> **Important:**  
-> This script has been tested on **macOS, Windows, and Ubuntu**.  
-> Testing on other Linux distributions (Debian, Fedora, Arch, etc.) is encouraged.
-
-Please open an issue if you encounter:
-- Incorrect installer selection
-- Architecture mismatches
-- Installation failures
-- Any unexpected behavior
-
----
-
-## 🧠 How It Works
-
-1. Detects the local system OS and CPU architecture
-2. Queries the GitHub Releases API for:
-   ```
-   brave/brave-browser
-   ```
-3. Selects the **latest stable release**
-4. Chooses the best-matching installer asset
-5. Downloads the installer
-6. Optionally runs the installer using native OS mechanisms
-
-The script intentionally avoids:
-- Beta releases
-- Nightly releases
-- Release candidates
-
----
-
-## 🔐 GitHub API Rate Limits
-
-GitHub enforces unauthenticated rate limits.
-
-If you hit a rate limit, set a token:
+### Check installed vs latest version
 
 ```bash
-export GITHUB_TOKEN=your_token_here
-python3 braver.py
+brave-updater check
+brave-updater check --json
 ```
 
----
+### Download the latest installer
 
-## 🤝 Contributing
+```bash
+brave-updater download
+brave-updater download --dir ~/Downloads
+```
 
-Contributions are welcome!
+### Update only when needed
 
-Especially needed:
-- Linux distro compatibility testing
+```bash
+brave-updater update
+brave-updater update --yes
+```
 
-Please:
-1. Open an issue describing the problem
-2. Include OS, architecture, and installer name
-3. Attach logs or error output when possible
+### Install a package you already downloaded
 
----
+```bash
+brave-updater install /path/to/Brave-Browser-universal.dmg
+```
 
-## 📄 License
+### Source strategy
 
-This project is licensed under the **MIT License**.  
-See the `LICENSE` file for details.
+`brave-updater` currently defaults to GitHub Releases because that is the supported product direction for this project.
+
+Available source modes:
+- `github`
+- `official`
+- `auto`
+
+At the moment, `official` and `auto` resolve through Brave's official GitHub release feed. The code is structured so distinct official non-GitHub providers can be added later without redesigning the CLI.
+
+## Development
+
+Run the test suite:
+
+```bash
+python3 -m unittest discover -v
+```
+
+Build distributions:
+
+```bash
+python3 -m pip install build
+python3 -m build
+```
+
+## CI and release flow
+
+- CI runs deterministic unit tests on Linux, macOS, and Windows.
+- A scheduled smoke workflow hits the live Brave release endpoint with read-only checks.
+- Tagging `v*` builds and uploads sdist/wheel artifacts to GitHub Releases.
+
+## Legal and policy notes
+
+- This project should avoid Brave logos and branded artwork unless you have explicit permission.
+- The project should continue to present itself as unofficial and non-affiliated.
+- The project should continue to download installers from Brave-controlled endpoints rather than mirror them.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
